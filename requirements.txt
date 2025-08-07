@@ -1,0 +1,36 @@
+# Core LangChain dependencies
+langchain
+langchain-community
+langchain-core
+langchain-text-splitters
+langchain-google-genai
+langgraph
+grandalf
+
+# FastAPI and web framework
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+
+# Document processing
+PyPDF2
+python-docx
+docx2txt
+unstructured
+beautifulsoup4
+requests
+
+# Embeddings and vector stores - Fixed versions
+sentence-transformers
+faiss-cpu
+numpy
+torch
+transformers
+huggingface-hub
+
+# Additional utilities
+python-magic
+python-magic-bin
+pypdf
+lxml
