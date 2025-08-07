@@ -34,3 +34,6 @@ python-magic
 python-magic-bin
 pypdf
 lxml
+
+# Vercel specific
+python-dotenv

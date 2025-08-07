@@ -223,3 +223,6 @@ uploaded_files/
 .vscode/
 .env
 .env.local
+
+# Vercel
+.vercel

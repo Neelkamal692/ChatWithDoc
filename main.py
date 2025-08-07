@@ -157,3 +157,6 @@ async def clear_documents():
     
 # Mount the frontend directory as a static path
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+
+# For Vercel deployment - export the app
+app.debug = False
