@@ -50,6 +50,7 @@ class PDFProcessor:
             Dict[str, Any]: Processing status and information
         """
         try:
+            print(f"Processing PDF file: {file_path}")
             # Document Loading
             loader = PyPDFLoader(file_path)
             pages = loader.load()

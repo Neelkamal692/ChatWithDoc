@@ -1,10 +1,10 @@
 # Core LangChain dependencies
-langchain>=0.3.0
-langchain-community>=0.3.0
-langchain-core>=0.3.0
-langchain-text-splitters>=0.3.0
-langchain-google-genai>=2.1.0
-langgraph>=0.6.0
+langchain
+langchain-community
+langchain-core
+langchain-text-splitters
+langchain-google-genai
+langgraph
 grandalf
 
 # FastAPI and web framework
@@ -21,7 +21,7 @@ unstructured
 beautifulsoup4
 requests
 
-# Embeddings and vector stores - Updated versions for Python 3.12
+# Embeddings and vector stores - Fixed versions
 sentence-transformers
 faiss-cpu
 numpy
@@ -29,9 +29,14 @@ torch
 transformers
 huggingface-hub
 
-# Additional utilities - Removed problematic packages
+# Additional utilities
+python-magic
+python-magic-bin
 pypdf
 lxml
 
-# Vercel specific
-python-dotenv
+
+
+# Web scraping
+requests
+beautifulsoup4

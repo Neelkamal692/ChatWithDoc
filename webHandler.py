@@ -1,149 +1,110 @@
-from langchain_community.document_loaders import WebBaseLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chat_models import init_chat_model
-from langchain_huggingface import HuggingFaceEmbeddings
-import faiss
-from langchain_community.docstore.in_memory import InMemoryDocstore
-from langchain_community.vectorstores import FAISS
-import os
-from langchain import hub
-from dotenv import load_dotenv
-from langgraph.graph import START, StateGraph
-from typing import List, Dict, Any, Optional, Union
-from pydantic import BaseModel, Field
-from langchain.docstore.document import Document
-
-load_dotenv()
-
-class State(BaseModel):
-    question: str = Field(..., description="Type your question here")
-    context: List[Document] = Field(
-        default_factory=list,
-        description="A list of Document objects",
-    )
-    answer: str = Field(default="", description="Answer will be here")
+import requests
+from bs4 import BeautifulSoup
+from typing import Dict, Any
 
 class WebProcessor:
     def __init__(self):
-        # Load model provider
-        if not os.environ.get("GOOGLE_API_KEY"):
-            raise ValueError("Google Gemini API key not found in environment variables")
+        self.content = ""
+        self.url = ""
 
-        self.llm = init_chat_model("gemini-2.5-flash", model_provider="google_genai")
-        self.embedding_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={"device": "cpu"}
-        )
-        self.prompt = hub.pull("rlm/rag-prompt")
-        self.vector_store = None
-        self.chunk_size = 1000
-        self.chunk_overlap = 200
-
-    def process_url(self, url: Union[str, List[str]]) -> Dict[str, Any]:
-        """
-        Process a URL or list of URLs and prepare for querying
-        
-        Args:
-            url: Single URL string or list of URLs to process
-            
-        Returns:
-            Dict[str, Any]: Processing status and information
-        """
+    def process_url(self, url: str) -> Dict[str, Any]:
+        """Process a web page URL"""
         try:
-            # Convert single URL to list
-            urls = [url] if isinstance(url, str) else url
+            # Set headers to mimic a real browser
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+            }
 
-            # Document Loading
-            loader = WebBaseLoader(urls)
-            pages = loader.load()
+            # Fetch the webpage
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
 
-            # Text Splitting
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=self.chunk_size,
-                chunk_overlap=self.chunk_overlap,
-                length_function=len,
-                is_separator_regex=False,
-            )
-            texts = text_splitter.split_documents(pages)
+            # Parse with BeautifulSoup
+            soup = BeautifulSoup(response.content, 'html.parser')
 
-            # Vector Store Setup
-            embedding_dim = len(self.embedding_model.embed_query("test"))
-            index = faiss.IndexFlatL2(embedding_dim)
+            # Remove unwanted elements
+            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'advertisement']):
+                element.decompose()
 
-            self.vector_store = FAISS(
-                embedding_function=self.embedding_model,
-                index=index,
-                docstore=InMemoryDocstore(),
-                index_to_docstore_id={},
-            )
+            # Extract text content
+            text_content = soup.get_text()
 
-            # Index chunks
-            self.vector_store.add_documents(documents=texts)
+            # Clean up the text
+            lines = (line.strip() for line in text_content.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text_content = ' '.join(chunk for chunk in chunks if chunk)
+
+            if not text_content.strip():
+                return {"status": "error", "message": "No text content could be extracted from the webpage"}
+
+            # Extract title
+            title = soup.find('title')
+            page_title = title.get_text().strip() if title else "Untitled"
+
+            self.content = text_content.strip()
+            self.url = url
 
             return {
                 "status": "success",
-                "message": "URLs processed successfully",
-                "num_pages": len(pages),
-                "num_chunks": len(texts),
-                "urls_processed": urls
+                "message": "Web page processed successfully",
+                "title": page_title,
+                "num_pages": 1,
+                "num_chunks": len(text_content.split()) // 100 + 1,
+                "word_count": len(text_content.split())
             }
+
+        except requests.exceptions.RequestException as e:
+            return {"status": "error", "message": f"Failed to fetch webpage: {str(e)}"}
         except Exception as e:
-            return {
-                "status": "error",
-                "message": f"Error processing URLs: {str(e)}"
-            }
+            return {"status": "error", "message": f"Error processing webpage: {str(e)}"}
 
     def query_response(self, query: str) -> Dict[str, Any]:
-        """
-        Query the processed web content
+        """Answer a query about the web content"""
+        if not self.content:
+            return {"status": "error", "message": "No web content available"}
         
-        Args:
-            query (str): The question to ask about the content
-            
-        Returns:
-            Dict[str, Any]: Answer and relevant context
-        """
-        if not self.vector_store:
-            return {
-                "status": "error",
-                "message": "No content has been processed yet"
-            }
-
         try:
-            # Create state graph
-            graph_builder = StateGraph(State)
-
-            # Define retrieval step
-            def retrieve(state: State):
-                retrieved_docs = self.vector_store.similarity_search(state.question)
-                return {"context": retrieved_docs}
-
-            # Define generation step
-            def generate(state: State):
-                docs_content = "\n\n".join(doc.page_content for doc in state.context)
-                messages = self.prompt.invoke({
-                    "question": state.question,
-                    "context": docs_content
-                })
-                response = self.llm.invoke(messages)
-                return {"answer": response.content}
-
-            # Build and compile the graph
-            graph = graph_builder.add_sequence([retrieve, generate]).set_entry_point("retrieve").compile()
-
-            # Execute the query
-            response = graph.invoke({
-                "question": query
-            })
-
+            # Simple keyword-based search
+            answer = self._search_content(query, self.content)
             return {
                 "status": "success",
-                "answer": response["answer"],
-                "query": query
+                "answer": answer
             }
         except Exception as e:
-            return {
-                "status": "error",
-                "message": f"Error querying content: {str(e)}"
-            }
+            return {"status": "error", "message": str(e)}
 
+    def get_content(self) -> str:
+        """Get the extracted content"""
+        return self.content
+
+    def _search_content(self, query: str, content: str) -> str:
+        """Simple keyword-based search"""
+        query_words = query.lower().split()
+        
+        # Split content into sentences
+        sentences = []
+        for sentence in content.split('.'):
+            sentence = sentence.strip()
+            if len(sentence) > 10:  # Filter out very short fragments
+                sentences.append(sentence)
+        
+        # Find relevant sentences
+        relevant_sentences = []
+        for sentence in sentences:
+            sentence_lower = sentence.lower()
+            score = sum(1 for word in query_words if word in sentence_lower)
+            if score > 0:
+                relevant_sentences.append((sentence, score))
+        
+        if not relevant_sentences:
+            return "I couldn't find information related to your query on this webpage."
+        
+        # Sort by relevance and return top sentences
+        relevant_sentences.sort(key=lambda x: x[1], reverse=True)
+        top_sentences = [sent[0] for sent in relevant_sentences[:3]]
+        
+        return ". ".join(top_sentences)

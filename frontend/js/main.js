@@ -8,42 +8,66 @@ const chatMessages = document.getElementById('chatMessages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 
-// API Base URL (adjust based on your deployment)
-const API_BASE = '/api';
+// API Base URL
+const API_BASE = '/';
+
+console.log('JavaScript loaded successfully');
 
 // Event Listeners
 uploadArea.addEventListener('click', () => {
+    console.log('Upload area clicked');
     fileInput.click();
 });
 
 fileInput.addEventListener('change', (e) => {
+    console.log('File input changed');
     const files = e.target.files;
+    console.log('Files detected:', files.length); // Debug log
+    
     if (files.length > 0) {
-        // Clear everything first
-        clearAllFilesSync();
-        // Then upload new files
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
+        console.log('Files selected:', files.length);
+        
+        // Clear previous documents and UI first
+        clearPreviousDocuments();
+        
+        // Store files in an array BEFORE clearing input
+        const fileArray = Array.from(files);
+        console.log('Files stored in array:', fileArray.length);
+        
+        // Now process each file
+        fileArray.forEach((file, index) => {
+            console.log(`Processing file ${index + 1}:`, file.name, 'Type:', file.type);
             uploadFile(file);
-        }
+        });
+    } else {
+        console.log('No files detected in change event');
     }
 });
 
-processBtn.addEventListener('click', processAllDocuments);
+processBtn.addEventListener('click', () => {
+    console.log('Process button clicked');
+    processAllDocuments();
+});
 
-sendButton.addEventListener('click', sendMessage);
+sendButton.addEventListener('click', () => {
+    console.log('Send button clicked');
+    sendMessage();
+});
+
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
+        console.log('Enter key pressed');
         sendMessage();
     }
 });
 
-// Functions
-function clearAllFilesSync() {
-    // Clear the file list UI immediately
+// Separate function for clearing previous documents (doesn't clear current input)
+function clearPreviousDocuments() {
+    console.log('Clearing previous documents');
+    
+    // Clear the file list UI
     fileList.innerHTML = '';
-    // Clear the file input
-    fileInput.value = '';
+    
     // Clear URL input
     urlInput.value = '';
     
@@ -60,52 +84,81 @@ function clearAllFilesSync() {
     `;
     
     // Call backend to clear previous documents
-    fetch(`${API_BASE}/clear-documents`, {
+    fetch(`${API_BASE}clear-documents`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Clear documents response status:', response.status);
+        return response.json();
+    })
     .then(data => {
-        console.log('Previous documents cleared');
+        console.log('Previous documents cleared:', data);
     })
     .catch(error => {
         console.error('Error clearing documents:', error);
     });
 }
 
+// Function for complete reset (used by clear button if you add one)
+function clearAllFilesSync() {
+    console.log('Clearing all files completely');
+    
+    // Clear the file input (only call this when you want to reset everything)
+    fileInput.value = '';
+    
+    // Clear everything else
+    clearPreviousDocuments();
+}
+
 function uploadFile(file) {
+    console.log('Starting file upload for:', file.name);
+    
     const formData = new FormData();
     formData.append('file', file);
     
-    // Show processing in UI
-    addFileToList(file.name, formatFileSize(file.size), 'uploaded');
+    // Show file in UI immediately
+    addFileToList(file.name, formatFileSize(file.size), 'uploading');
     
-    fetch(`${API_BASE}/upload`, {
+    console.log('Making fetch request to:', `${API_BASE}upload`);
+    
+    fetch(`${API_BASE}upload`, {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Upload response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Upload response data:', data);
         if (data.error) {
             updateFileStatus(file.name, 'error');
             alert('Error uploading file: ' + data.error);
         } else {
-            // Keep as 'uploaded' status - will be processed when button is clicked
             updateFileStatus(file.name, 'uploaded');
+            console.log('File uploaded successfully:', file.name);
         }
     })
     .catch(error => {
+        console.error('Upload error:', error);
         updateFileStatus(file.name, 'error');
-        console.error('Error:', error);
-        alert('Error uploading file');
+        alert('Error uploading file: ' + error.message);
     });
 }
 
 function processAllDocuments() {
+    console.log('Processing all documents');
+    
     const url = urlInput.value.trim();
     const files = document.querySelectorAll('.file-item');
+    
+    console.log('URL:', url, 'Files count:', files.length);
     
     if (files.length === 0 && !url) {
         alert('Please upload files or enter a URL first');
@@ -115,61 +168,89 @@ function processAllDocuments() {
     // Show processing animation
     showProcessing();
     
-    // Process all uploaded files first (only those not already processed)
-    const filePromises = Array.from(files)
-        .filter(fileItem => {
+    // Process all uploaded files
+    let filePromise = Promise.resolve();
+    if (files.length > 0) {
+        // Update status to processing
+        files.forEach(fileItem => {
             const fileName = fileItem.dataset.filename;
-            const statusIcon = fileItem.querySelector('i');
-            // Only process files that are not already processed (no green check)
-            return !statusIcon.classList.contains('fa-check-circle');
-        })
-        .map(fileItem => {
-            const fileName = fileItem.dataset.filename;
-            return new Promise((resolve) => {
-                // Simulate processing time for files
-                setTimeout(() => {
-                    updateFileStatus(fileName, 'processed');
-                    resolve();
-                }, 1000);
-            });
+            updateFileStatus(fileName, 'processing');
         });
+        
+        console.log('Calling process-documents endpoint');
+        
+        filePromise = fetch(`${API_BASE}process-documents`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            console.log('Process documents response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Process documents response:', data);
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            // Mark all files as processed
+            files.forEach(fileItem => {
+                const fileName = fileItem.dataset.filename;
+                updateFileStatus(fileName, 'processed');
+            });
+            addBotMessage(`Successfully processed ${data.processed_count} files!`);
+            return data;
+        });
+    }
     
     // Process URL if provided
     let urlPromise = Promise.resolve();
     if (url) {
-        urlPromise = fetch(`${API_BASE}/process-url`, {
+        console.log('Processing URL:', url);
+        
+        urlPromise = fetch(`${API_BASE}process-url`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ url: url })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Process URL response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Process URL response:', data);
             if (data.error) {
                 throw new Error(data.error);
             }
-            // Show URL processing success
             addBotMessage(`URL processed successfully! Found ${data.document_info.num_pages} pages with ${data.document_info.num_chunks} text chunks.`);
             return data;
         });
     }
     
     // Wait for all processing to complete
-    Promise.all([...filePromises, urlPromise])
+    Promise.all([filePromise, urlPromise])
         .then(() => {
+            console.log('All processing completed');
             hideProcessing();
             addBotMessage("All documents and URLs have been processed successfully! You can now ask questions about them.");
         })
         .catch(error => {
+            console.error('Processing error:', error);
             hideProcessing();
-            console.error('Error:', error);
             alert('Error processing documents: ' + error.message);
         });
 }
 
 function sendMessage() {
     const message = messageInput.value.trim();
+    console.log('Sending message:', message);
+    
     if (message) {
         addUserMessage(message);
         messageInput.value = '';
@@ -177,15 +258,19 @@ function sendMessage() {
         // Show typing indicator
         showTypingIndicator();
         
-        fetch(`${API_BASE}/chat`, {
+        fetch(`${API_BASE}chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ message: message })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Chat response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Chat response:', data);
             hideTypingIndicator();
             if (data.error) {
                 addBotMessage("Sorry, I encountered an error: " + data.error);
@@ -194,29 +279,32 @@ function sendMessage() {
             }
         })
         .catch(error => {
+            console.error('Chat error:', error);
             hideTypingIndicator();
-            console.error('Error:', error);
             addBotMessage("Sorry, I encountered an error processing your request.");
         });
     }
 }
 
 function addFileToList(name, size, status = 'success') {
+    console.log('Adding file to list:', name, 'Status:', status);
+    
     const fileItem = document.createElement('div');
     fileItem.className = 'file-item';
     fileItem.dataset.filename = name;
     
     let statusIcon = '';
-    if (status === 'processing') {
+    if (status === 'uploading') {
         statusIcon = '<i class="fas fa-spinner fa-spin"></i>';
+    } else if (status === 'processing') {
+        statusIcon = '<i class="fas fa-cog fa-spin"></i>';
     } else if (status === 'error') {
         statusIcon = '<i class="fas fa-exclamation-circle" style="color: var(--danger);"></i>';
     } else if (status === 'processed') {
         statusIcon = '<i class="fas fa-check-circle" style="color: var(--success);"></i>';
     } else if (status === 'uploaded') {
         statusIcon = '<i class="fas fa-file-alt"></i>';
-    }
-    else {
+    } else {
         statusIcon = '<i class="fas fa-file-alt"></i>';
     }
     
@@ -235,28 +323,35 @@ function addFileToList(name, size, status = 'success') {
     
     // Add remove functionality
     fileItem.querySelector('.file-actions button').addEventListener('click', () => {
+        console.log('Removing file:', name);
         fileItem.remove();
     });
 }
 
 function updateFileStatus(name, status) {
+    console.log('Updating file status:', name, 'to', status);
+    
     const fileItems = document.querySelectorAll('.file-item');
     fileItems.forEach(item => {
         if (item.dataset.filename === name) {
             let statusIcon = '';
-            if (status === 'processing') {
+            if (status === 'uploading') {
                 statusIcon = '<i class="fas fa-spinner fa-spin"></i>';
+            } else if (status === 'processing') {
+                statusIcon = '<i class="fas fa-cog fa-spin"></i>';
             } else if (status === 'error') {
                 statusIcon = '<i class="fas fa-exclamation-circle" style="color: var(--danger);"></i>';
             } else if (status === 'processed') {
                 statusIcon = '<i class="fas fa-check-circle" style="color: var(--success);"></i>';
             } else if (status === 'uploaded') {
                 statusIcon = '<i class="fas fa-file-alt"></i>';
-            }
-            else {
+            } else {
                 statusIcon = '<i class="fas fa-file-alt"></i>';
             }
-            item.querySelector('i').outerHTML = statusIcon;
+            const iconElement = item.querySelector('i');
+            if (iconElement) {
+                iconElement.outerHTML = statusIcon;
+            }
         }
     });
 }
@@ -284,12 +379,14 @@ function addUserMessage(text) {
 
 function addBotMessage(text) {
     const messageDiv = document.createElement('div');
+    // Convert markdown to HTML
+    const markdownHTML = DOMPurify.sanitize(marked.parse(text));
     messageDiv.className = 'message bot-message';
     messageDiv.innerHTML = `
         <div class="message-header">
             <i class="fas fa-robot"></i> ChatWithDoc Assistant
         </div>
-        <div class="message-content">${text}</div>
+        <div class="message-content">${markdownHTML}</div>
     `;
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -316,10 +413,11 @@ function hideTypingIndicator() {
 }
 
 function showProcessing() {
+    console.log('Showing processing indicator');
     const processingDiv = document.createElement('div');
     processingDiv.className = 'processing';
     processingDiv.id = 'processingIndicator';
-    processingDiv.innerHTML = '<i class="fas fa-spinner"></i> Processing documents and URLs...';
+    processingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing documents and URLs...';
     
     // Replace chat messages with processing indicator
     chatMessages.innerHTML = '';
@@ -327,6 +425,7 @@ function showProcessing() {
 }
 
 function hideProcessing() {
+    console.log('Hiding processing indicator');
     const processingIndicator = document.getElementById('processingIndicator');
     if (processingIndicator) {
         processingIndicator.remove();
@@ -348,33 +447,47 @@ function hideProcessing() {
 // Drag and drop functionality
 uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
+    console.log('Drag over upload area');
     uploadArea.style.borderColor = 'var(--primary)';
     uploadArea.style.backgroundColor = 'rgba(67, 97, 238, 0.1)';
 });
 
 uploadArea.addEventListener('dragleave', () => {
+    console.log('Drag leave upload area');
     uploadArea.style.borderColor = 'var(--light-gray)';
     uploadArea.style.backgroundColor = '';
 });
 
 uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
+    console.log('Files dropped on upload area');
     uploadArea.style.borderColor = 'var(--light-gray)';
     uploadArea.style.backgroundColor = '';
     
     const files = e.dataTransfer.files;
+    console.log('Dropped files count:', files.length);
+    
     if (files.length > 0) {
-        // Clear everything first
-        clearAllFilesSync();
-        // Then upload new files
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
+        // Clear previous documents first
+        clearPreviousDocuments();
+        
+        // Store files in array before processing
+        const fileArray = Array.from(files);
+        
+        // Process each file
+        fileArray.forEach(file => {
+            console.log('Processing dropped file:', file.name, 'Type:', file.type);
             if (file.type === 'application/pdf' || 
                 file.type === 'application/msword' || 
                 file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
                 file.type === 'text/plain') {
                 uploadFile(file);
+            } else {
+                console.log('Unsupported file type:', file.type);
+                alert(`Unsupported file type: ${file.type}. Please upload PDF, DOC, DOCX, or TXT files.`);
             }
-        }
+        });
     }
 });
+
+console.log('All event listeners attached successfully');
