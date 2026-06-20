@@ -9,7 +9,7 @@ const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 
 // API Base URL
-const API_BASE = '/';
+const API_BASE = '/api/';
 
 console.log('JavaScript loaded successfully');
 
@@ -84,7 +84,7 @@ function clearPreviousDocuments() {
     `;
     
     // Call backend to clear previous documents
-    fetch(`${API_BASE}clear-documents`, {
+    fetch(`${API_BASE}clear`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -274,8 +274,10 @@ function sendMessage() {
             hideTypingIndicator();
             if (data.error) {
                 addBotMessage("Sorry, I encountered an error: " + data.error);
-            } else {
+            } else if (data.response != null && data.response !== '') {
                 addBotMessage(data.response);
+            } else {
+                addBotMessage("Sorry, I received an empty response.");
             }
         })
         .catch(error => {
@@ -379,15 +381,28 @@ function addUserMessage(text) {
 
 function addBotMessage(text) {
     const messageDiv = document.createElement('div');
-    // Convert markdown to HTML
-    const markdownHTML = DOMPurify.sanitize(marked.parse(text));
     messageDiv.className = 'message bot-message';
     messageDiv.innerHTML = `
         <div class="message-header">
             <i class="fas fa-robot"></i> ChatWithDoc Assistant
         </div>
-        <div class="message-content">${markdownHTML}</div>
+        <div class="message-content"></div>
     `;
+
+    const contentDiv = messageDiv.querySelector('.message-content');
+    const safeText = text == null ? '' : String(text);
+
+    try {
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(safeText));
+        } else {
+            contentDiv.textContent = safeText;
+        }
+    } catch (error) {
+        console.error('Error rendering bot message:', error);
+        contentDiv.textContent = safeText;
+    }
+
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
