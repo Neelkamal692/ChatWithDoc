@@ -1,8 +1,8 @@
 """Document handlers for processing different file types."""
 
 from .base import BaseHandler
-from .pdf import PDFHandler
 from .doc import DOCHandler
+from .pdf import PDFHandler
 from .txt import TXTHandler
 from .web import WebHandler
 

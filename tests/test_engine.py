@@ -1,7 +1,8 @@
 """Document engine tests."""
 
+
 import pytest
-from unittest.mock import Mock, patch
+
 from src.chat_with_doc.services.engine import DocumentEngine
 
 

@@ -75,7 +75,7 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 
 [project.urls]
-Homepage = "https://github.com/yourusername/chat-with-doc"
-Documentation = "https://github.com/yourusername/chat-with-doc/wiki"
-Repository = "https://github.com/yourusername/chat-with-doc.git"
-Issues = "https://github.com/yourusername/chat-with-doc/issues"
+Homepage = "https://github.com/Neelkamal692/ChatWithDoc"
+Documentation = "https://github.com/Neelkamal692/ChatWithDoc/wiki"
+Repository = "https://github.com/Neelkamal692/ChatWithDoc.git"
+Issues = "https://github.com/Neelkamal692/ChatWithDoc/issues"

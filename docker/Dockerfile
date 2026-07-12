@@ -28,11 +28,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /app/src ./src
+
+# Copy project files
+COPY src ./src
 
 # Copy environment template
 COPY .env.example .env.example
-COPY config ./config
 COPY frontend ./frontend
 
 # Create upload directory
