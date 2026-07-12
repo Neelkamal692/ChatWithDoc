@@ -2,6 +2,7 @@
 
 import pytest
 from fastapi.testclient import TestClient
+
 from src.chat_with_doc.api.main import app
 
 
