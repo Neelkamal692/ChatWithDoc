@@ -132,7 +132,7 @@ Example response:
 }
 ```
 
-### Process uploaded documents
+### Process uploaded document
 
 ```bash
 curl -X POST "http://localhost:8000/api/process-documents"
