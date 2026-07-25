@@ -1,7 +1,11 @@
 """Document engine tests."""
 
+import os
+
 
 import pytest
+
+os.environ.setdefault("GOOGLE_API_KEY", "dummy")
 
 from src.chat_with_doc.services.engine import DocumentEngine
 
@@ -35,3 +39,10 @@ def test_clear_documents(engine):
     assert result["status"] == "success"
     assert engine.processed_documents == []
     assert engine.all_content == ""
+
+
+def test_pdf_handler_imports_with_available_loader():
+    """Test PDF handler imports with the loader available in this environment."""
+    from src.chat_with_doc.handlers.pdf import PDFHandler
+
+    assert PDFHandler.__name__ == 'PDFHandler'

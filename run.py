@@ -2,6 +2,8 @@
 
 import uvicorn
 
+from src.chat_with_doc.api.main import app
+
 if __name__ == "__main__":
     uvicorn.run(
         "src.chat_with_doc.api.main:app",

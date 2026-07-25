@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Chat with your documents using Retrieval Augmented Generation (RAG)"
 requires-python = ">=3.9"
 authors = [
-    {name = "ChatWithDoc Team"}
+    {name = "Neel kamal Sahu"}
 ]
 license = {text = "MIT"}
 readme = "README.md"
@@ -27,6 +27,8 @@ dependencies = [
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
     "PyYAML>=6.0",
+    "pymupdf>=1.26.5",
+    "langchain-pinecone>=0.1.0",
 ]
 
 [project.optional-dependencies]
