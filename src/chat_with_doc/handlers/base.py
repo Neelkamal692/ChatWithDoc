@@ -3,8 +3,8 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-
-from langchain.docstore.document import Document
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.documents import Document
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
 from langgraph.graph import StateGraph
@@ -79,8 +79,19 @@ class BaseHandler(ABC):
 
             # Define generation step
             def generate(state: State):
-                from langchain import hub
-                prompt = hub.pull("rlm/rag-prompt")
+                
+                prompt = ChatPromptTemplate.from_messages([
+                (
+                    "system",
+                    "You are a helpful assistant. Answer the user's question using only "
+                    "the provided context. If the answer is not in the context, say that "
+                    "you do not know."
+                ),
+                (
+                    "human",
+                    "Context:\n{context}\n\nQuestion:\n{question}"
+                ),
+                    ])
                 logger.info(f"Prompt pulled: {prompt}")
                 docs_content = "\n\n".join(doc.page_content for doc in state.context)
                 messages = prompt.invoke({
@@ -132,7 +143,6 @@ class BaseHandler(ABC):
             # Just a sanity check to ensure the index exists
             if settings.PINECONE_INDEX_NAME not in pc.list_indexes().names():
                 raise ValueError(f"Index '{settings.PINECONE_INDEX_NAME}' does not exist in Pinecone.")
-            logger.info("pinecone initialization couldn't complete")
             vector_store = PineconeVectorStore.from_documents(
                 documents,
                 embedding=self.embedding_model,

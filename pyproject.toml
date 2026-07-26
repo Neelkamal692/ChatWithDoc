@@ -2,7 +2,7 @@
 name = "chatwith-doc"
 version = "1.0.0"
 description = "Chat with your documents using Retrieval Augmented Generation (RAG)"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 authors = [
     {name = "Neel kamal Sahu"}
 ]
@@ -15,7 +15,7 @@ dependencies = [
     "pypdf>=4.0.0",    
     "python-docx>=0.8.11", 
     "langchain-core>=0.3.0",
-    "langchain-google-genai>=2.0.0",
+    "langchain-google-genai>=4.3.1",
     "langchain-community>=0.3.0",
     "langchain-text-splitters>=0.1.0",
     "langchain-huggingface>=0.0.1",
@@ -59,7 +59,7 @@ addopts = "-v --strict-markers"
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py312"
 select = ["E", "F", "W", "I"]
 ignore = ["E501"]
 
@@ -68,10 +68,10 @@ known-first-party = ["chat_with_doc"]
 
 [tool.black]
 line-length = 100
-target-version = ["py39"]
+target-version = ["py312"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false

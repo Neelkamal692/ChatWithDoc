@@ -78,20 +78,6 @@ class Settings:
             getattr(embedding_model, "output_dimensionality", None),
         )
 
-        test_vector = embedding_model.embed_query("dimension test")
-
-        logger.info(
-            "Requested dimension=%s, actual dimension=%s",
-            settings_instance.EMBEDDING_DIM,
-            len(test_vector),
-        )
-
-        if len(test_vector) != settings_instance.EMBEDDING_DIM:
-            raise RuntimeError(
-                f"Embedding model returned {len(test_vector)} dimensions, "
-                f"but {settings_instance.EMBEDDING_DIM} were requested."
-            )
-
         return embedding_model
 
 

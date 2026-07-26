@@ -4,7 +4,7 @@ import logging
 import os
 import shutil
 from typing import Any, Dict, List
-
+from fastapi.responses import JSONResponse
 from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel, Field
 
@@ -223,13 +223,14 @@ async def chat_with_documents(chat_request: ChatRequest):
     
     Answers questions based on the uploaded and processed documents.
     """
-    from fastapi.responses import JSONResponse
+    
     logger.info(f"Received message : {chat_request.message} from user")
     query = chat_request.message
 
     try:
+        logger.info("waiting for query response...")
         result = doc_engine.query_documents(query)
-
+        logger.info(f"i should get  query response...")
         if result["status"] == "error":
             return JSONResponse(status_code=400, content={"error": result["message"]})
 
