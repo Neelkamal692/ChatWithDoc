@@ -3,17 +3,18 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-
-import faiss
-from langchain.docstore.document import Document
-from langchain_community.docstore.in_memory import InMemoryDocstore
-from langchain_community.vectorstores import FAISS
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.documents import Document
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
 from langgraph.graph import StateGraph
 from pydantic import BaseModel, Field
 
 from ..core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
 class State(BaseModel):
     """State model for RAG pipeline."""
 
@@ -33,7 +34,8 @@ class BaseHandler(ABC):
         self.llm = settings.get_llm()
         self.embedding_model = settings.get_embedding_model()
         self.embedding_dim = settings.EMBEDDING_DIM
-        self.vector_store: Optional[FAISS] = None
+        # Fixed: use PineconeVectorStore, not FAISS
+        self.vector_store: Optional[PineconeVectorStore] = None
         self.chunk_size = settings.CHUNK_SIZE
         self.chunk_overlap = settings.CHUNK_OVERLAP
 
@@ -67,7 +69,7 @@ class BaseHandler(ABC):
             }
 
         try:
-            # Create state graph
+            # Fixed: correct StateGraph construction
             graph_builder = StateGraph(State)
 
             # Define retrieval step
@@ -77,9 +79,20 @@ class BaseHandler(ABC):
 
             # Define generation step
             def generate(state: State):
-                from langchain import hub
-                prompt = hub.pull("rlm/rag-prompt")
-                logger.info(f"Prompt: {prompt}")
+                
+                prompt = ChatPromptTemplate.from_messages([
+                (
+                    "system",
+                    "You are a helpful assistant. Answer the user's question using only "
+                    "the provided context. If the answer is not in the context, say that "
+                    "you do not know."
+                ),
+                (
+                    "human",
+                    "Context:\n{context}\n\nQuestion:\n{question}"
+                ),
+                    ])
+                logger.info(f"Prompt pulled: {prompt}")
                 docs_content = "\n\n".join(doc.page_content for doc in state.context)
                 messages = prompt.invoke({
                     "question": state.question,
@@ -88,8 +101,12 @@ class BaseHandler(ABC):
                 response = self.llm.invoke(messages)
                 return {"answer": response.content}
 
-            # Build and compile the graph
-            graph = graph_builder.add_sequence([retrieve, generate]).set_entry_point("retrieve").compile()
+            # Build graph with explicit nodes and edges
+            graph_builder.add_node("retrieve", retrieve)
+            graph_builder.add_node("generate", generate)
+            graph_builder.add_edge("retrieve", "generate")
+            graph_builder.set_entry_point("retrieve")
+            graph = graph_builder.compile()
 
             # Execute the query
             response = graph.invoke({"question": query})
@@ -100,31 +117,47 @@ class BaseHandler(ABC):
                 "query": query
             }
         except Exception as e:
+            logger.error(f"Query failed: {e}", exc_info=True)
             return {
                 "status": "error",
                 "message": f"Error querying document: {str(e)}"
             }
 
-    def _create_vector_store(self, documents: List[Document]) -> FAISS:
+    def _create_vector_store(self, documents: List[Document]) -> PineconeVectorStore:
         """
-        Create a FAISS vector store from documents.
+        Create a Pinecone vector store from documents.
         
         Args:
             documents: List of LangChain Document objects
             
         Returns:
-            FAISS vector store instance
+            PineconeVectorStore instance
+            
+        Raises:
+            Exception: If Pinecone initialization or indexing fails
         """
+        logger.info("Creating Pinecone vector store")
+        try:
+            # Optional: verify connection (you can remove this if not needed)
+            pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+            # Just a sanity check to ensure the index exists
+            if settings.PINECONE_INDEX_NAME not in pc.list_indexes().names():
+                raise ValueError(f"Index '{settings.PINECONE_INDEX_NAME}' does not exist in Pinecone.")
+            vector_store = PineconeVectorStore.from_documents(
+                documents,
+                embedding=self.embedding_model,
+                index_name=settings.PINECONE_INDEX_NAME,
+                namespace=settings.PINECONE_NAMESPACE or "default",
+                pinecone_api_key=settings.PINECONE_API_KEY,
+            )
+            logger.info("Pinecone vector store created successfully")
+            return vector_store
+        except Exception as e:
+            logger.error(f"Pinecone initialization failed: {e}", exc_info=True)
+            # Re-raise so the caller knows it failed (no silent None)
+            raise RuntimeError(f"Failed to create Pinecone vector store: {e}")
 
-        index = faiss.IndexFlatL2(self.embedding_dim)
-
-        vector_store = FAISS(
-            embedding_function=self.embedding_model,
-            index=index,
-            docstore=InMemoryDocstore(),
-            index_to_docstore_id={},
-        )
-
-        vector_store.add_documents(documents=documents)
-        return vector_store
-
+    # Optional: helper to assign the store (to be used in subclasses)
+    def _initialize_store(self, documents: List[Document]) -> None:
+        """Convenience method to create and assign the vector store."""
+        self.vector_store = self._create_vector_store(documents)

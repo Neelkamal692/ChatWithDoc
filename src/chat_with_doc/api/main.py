@@ -1,7 +1,7 @@
 """FastAPI application factory."""
 
 import os
-
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +9,12 @@ from fastapi.staticfiles import StaticFiles
 from ..core.config import settings
 from .routes import router
 
+# Configure logging before importing application modules
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    force=True,
+)
 os.environ["LANGCHAIN_USER_AGENT"] = "ChatWithDoc/1.0"
 
 

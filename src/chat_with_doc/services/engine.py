@@ -84,10 +84,11 @@ class DocumentEngine:
         Returns:
             Dictionary with combined answers
         """
+        logger.info(f"Querying {len(self.processed_documents)} documents with: {query}")
         if not self.processed_documents:
             return {"status": "error", "message": "No documents processed"}
 
-        print(f"Querying {len(self.processed_documents)} documents with: {query}")
+        logger.info(f"Querying {len(self.processed_documents)} documents with: {query}")
 
         try:
             all_responses = []
@@ -100,8 +101,8 @@ class DocumentEngine:
                     response = handler.query(query)
                     if response.get("status") == "success":
                         answer = response.get("answer", "")
-                        if answer and answer.strip():
-                            all_responses.append(f"From {filename}:\n{answer}")
+                        logger.info(f"this is the {answer}")
+                        all_responses.append(f"From {filename}:\n{answer[0]['text']}")
                 except Exception as e:
                     print(f"Error querying {filename}: {e}")
                     continue
