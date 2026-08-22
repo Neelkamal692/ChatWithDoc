@@ -1,15 +1,16 @@
-"""FastAPI application factory."""
+"""FastAPI application entry point."""
 
-import os
 import logging
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from ..core.config import settings
-from .routes import router
+from .api.chat import router as chat_router
+from .api.documents import router as documents_router
+from .config.settings import settings
 
-# Configure logging before importing application modules
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -20,14 +21,11 @@ os.environ["LANGCHAIN_USER_AGENT"] = "ChatWithDoc/1.0"
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-
     app = FastAPI(
         title=settings.API_TITLE,
         version=settings.API_VERSION,
-        description="Chat with your documents using Retrieval Augmented Generation (RAG)"
+        description="Chat with your documents using Retrieval Augmented Generation (RAG)",
     )
-
-    # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -35,22 +33,18 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    # Include routes
-    app.include_router(router, prefix="/api", tags=["documents"])
-
-    # Serve static files (frontend)
-    frontend_path = os.path.join(os.path.dirname(__file__), "../../../frontend")
+    app.include_router(documents_router, prefix="/api", tags=["documents"])
+    app.include_router(chat_router, prefix="/api", tags=["chat"])
+    @app.get("/health")
+    async def health_check():
+        return {"status": "healthy"}
+    frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend")
     if os.path.exists(frontend_path):
         app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
-    @app.get("/health")
-    async def health_check():
-        """Health check endpoint."""
-        return {"status": "healthy"}
 
     return app
 
 
-# Create the app instance
 app = create_app()
+

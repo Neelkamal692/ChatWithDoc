@@ -7,7 +7,7 @@ import pytest
 
 os.environ.setdefault("GOOGLE_API_KEY", "dummy")
 
-from src.chat_with_doc.services.engine import DocumentEngine
+from src.chat_with_doc.document_processing.engine import DocumentEngine
 
 
 @pytest.fixture
@@ -43,6 +43,7 @@ def test_clear_documents(engine):
 
 def test_pdf_handler_imports_with_available_loader():
     """Test PDF handler imports with the loader available in this environment."""
-    from src.chat_with_doc.handlers.pdf import PDFHandler
+    from src.chat_with_doc.document_processing.handlers.pdf import PDFHandler
 
     assert PDFHandler.__name__ == 'PDFHandler'
+

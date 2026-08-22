@@ -1,21 +1,21 @@
-"""API route definitions."""
+"""Document ingestion API endpoints (upload, processing, status)."""
 
 import logging
 import os
 import shutil
 from typing import Any, Dict, List
-from fastapi.responses import JSONResponse
+
 from fastapi import APIRouter, File, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from ..services.engine import DocumentEngine
+from ..document_processing.engine import DocumentEngine
 
 logger = logging.getLogger(__name__)
 
-
 router = APIRouter()
 doc_engine = DocumentEngine()
-uploaded_files = []
+uploaded_files: List[Dict[str, str]] = []
 
 # Configure upload directory
 UPLOAD_DIR = "uploaded_files"
@@ -26,16 +26,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 class URLRequest(BaseModel):
     """Request model for URL processing."""
     url: str = Field(..., description="URL of the document to process")
-
-
-class ChatRequest(BaseModel):
-    """Request model for chat queries."""
-    message: str = Field(..., description="User's question")
-
-
-class ChatResponse(BaseModel):
-    """Response model for chat queries."""
-    response: str = Field(..., description="Answer to the user's question")
 
 
 class UploadResponse(BaseModel):
@@ -55,7 +45,7 @@ class ProcessResponse(BaseModel):
 async def upload_file(file: UploadFile = File(...)):
     """
     Upload a document for processing.
-    
+
     Supported formats:
     - PDF (application/pdf)
     - DOCX (application/vnd.openxmlformats-officedocument.wordprocessingml.document)
@@ -84,13 +74,12 @@ async def upload_file(file: UploadFile = File(...)):
     elif file_extension in extension_to_type:
         content_type = extension_to_type[file_extension]
     else:
-        from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=400,
             content={"error": f"Unsupported file type: {file_extension}"}
         )
 
-    print(f"Using content type: {content_type}")
+    logger.info(f"Using content type: {content_type}")
 
     file_location = os.path.join(UPLOAD_DIR, file.filename)
 
@@ -106,7 +95,7 @@ async def upload_file(file: UploadFile = File(...)):
     }
     uploaded_files.append(file_info)
 
-    print("File uploaded successfully, ready for processing")
+    logger.info("File uploaded successfully, ready for processing")
     return UploadResponse(
         message="File uploaded successfully",
         document_info={
@@ -122,11 +111,9 @@ async def upload_file(file: UploadFile = File(...)):
 async def process_documents():
     """
     Process all uploaded files.
-    
+
     This endpoint processes files that were previously uploaded.
     """
-    from fastapi.responses import JSONResponse
-
     try:
         if not uploaded_files:
             return JSONResponse(
@@ -147,16 +134,16 @@ async def process_documents():
 
                 if result["status"] == "success":
                     processed_count += 1
-                    print(f"Successfully processed: {file_info['filename']}")
+                    logger.info(f"Successfully processed: {file_info['filename']}")
                 else:
                     error_msg = f"{file_info['filename']}: {result['message']}"
                     errors.append(error_msg)
-                    print(f"Failed to process {file_info['filename']}: {result['message']}")
+                    logger.warning(f"Failed to process {file_info['filename']}: {result['message']}")
 
             except Exception as e:
                 error_msg = f"{file_info['filename']}: {str(e)}"
                 errors.append(error_msg)
-                print(f"Exception processing {file_info['filename']}: {e}")
+                logger.warning(f"Exception processing {file_info['filename']}: {e}")
 
         # Clear uploaded files list
         uploaded_files.clear()
@@ -185,16 +172,14 @@ async def process_documents():
 async def process_url(url_request: URLRequest):
     """
     Process a document from a URL.
-    
+
     Fetches and processes web page content.
     """
-    from fastapi.responses import JSONResponse
-
     url = url_request.url
 
     try:
         result = doc_engine.process_url(url)
-        print("URL processing result:", result)
+        logger.info(f"URL processing result: {result}")
 
         if result["status"] == "error":
             return JSONResponse(status_code=400, content={"error": result["message"]})
@@ -211,30 +196,6 @@ async def process_url(url_request: URLRequest):
                 "word_count": result.get("word_count", 0)
             }
         )
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@router.post("/chat", response_model=ChatResponse)
-async def chat_with_documents(chat_request: ChatRequest):
-    """
-    Chat with the processed documents.
-    
-    Answers questions based on the uploaded and processed documents.
-    """
-    
-    logger.info(f"Received message : {chat_request.message} from user")
-    query = chat_request.message
-
-    try:
-        logger.info("waiting for query response...")
-        result = doc_engine.query_documents(query)
-        logger.info(f"i should get  query response...")
-        if result["status"] == "error":
-            return JSONResponse(status_code=400, content={"error": result["message"]})
-
-        return ChatResponse(response=result["answer"])
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
