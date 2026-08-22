@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List
 
-from ..handlers import DOCHandler, PDFHandler, TXTHandler, WebHandler
+from .handlers import DOCHandler, PDFHandler, TXTHandler, WebHandler
 
 logger = logging.getLogger(__name__)
 class DocumentEngine:
@@ -153,10 +153,18 @@ class DocumentEngine:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
+    def get_status(self) -> Dict[str, Any]:
+        """Return the current document collection status."""
+        return {
+            "total_documents": len(self.processed_documents),
+            "document_types": [doc["content_type"] for doc in self.processed_documents],
+            "filenames": [doc["filename"] for doc in self.processed_documents],
+        }
     def clear_documents(self) -> Dict[str, Any]:
         """Clear all processed documents."""
         self.processed_documents = []
         self.all_content = ""
         logger.info("All documents cleared")
         return {"status": "success", "message": "All documents cleared"}
+
 

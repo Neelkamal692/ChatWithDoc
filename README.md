@@ -232,3 +232,12 @@ MIT — see [LICENSE](LICENSE).
 ## Support
 
 Open a GitHub issue for bugs or questions.
+
+## Project structure
+
+- `src/chat_with_doc/main.py` contains the FastAPI application entry point.
+- `src/chat_with_doc/api/` contains HTTP route modules.
+- `src/chat_with_doc/document_processing/` contains the engine and document handlers.
+- `src/chat_with_doc/embeddings/` and `src/chat_with_doc/vectorstore/` contain model and FAISS services.
+- `src/chat_with_doc/rag/` contains the LangGraph retrieval and generation nodes.
+- `src/chat_with_doc/models/` contains shared state and schema models.

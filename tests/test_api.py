@@ -3,7 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from src.chat_with_doc.api.main import app
+from src.chat_with_doc.main import app
 
 
 @pytest.fixture
@@ -35,3 +35,4 @@ def test_clear_documents(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
+
