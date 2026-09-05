@@ -1,17 +1,16 @@
 """Embedding model construction."""
 
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_ollama import OllamaEmbeddings
 
 from ..config.settings import settings
 
 
 class EmbeddingService:
-    """Build the configured Gemini embedding model."""
+    """Build the configured local Ollama embedding model."""
 
     @staticmethod
-    def create() -> GoogleGenerativeAIEmbeddings:
-        return GoogleGenerativeAIEmbeddings(
-            model=settings.EMBEDDING_MODEL,
-            output_dimensionality=settings.EMBEDDING_DIM,
-            google_api_key=settings.GOOGLE_API_KEY,
+    def create() -> OllamaEmbeddings:
+        return OllamaEmbeddings(
+            model=settings.OLLAMA_EMBEDDING_MODEL,
+            base_url=settings.OLLAMA_HOST,
         )

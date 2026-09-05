@@ -52,19 +52,60 @@ Open `http://localhost:8000`
 
 ```
 ChatWithDoc/
-├── .github/                   # CI/CD workflows
-├── docker/                    # Production and development Dockerfiles
-├── frontend/                  # Static HTML / CSS / JS UI
-├── src/chat_with_doc/         # Main application package
-│   ├── core/                  # Settings and model configuration
-│   ├── handlers/              # Document processors (PDF, DOCX, TXT, Web)
-│   ├── services/              # DocumentEngine orchestration
-│   └── api/                   # FastAPI app and routes
-├── tests/                     # Unit and API tests
-├── .env.example               # Environment variable template
-├── pyproject.toml             # Package and dependency management
-├── run.py                     # Application entry point
-└── README.md
+│
+├── pyproject.toml
+├── README.md
+├── .env
+├── .gitignore
+│
+├── data/
+│   └── faiss_index/               # persisted FAISS index
+│
+├── src/
+│   └── chat_with_doc/
+│       │
+│       ├── __init__.py
+│       ├── main.py                # FastAPI application entry point
+│       │
+│       ├── api/
+│       │   ├── __init__.py
+│       │   ├── documents.py       # upload/ingestion endpoints
+│       │   └── chat.py            # question/answer endpoints
+│       │
+│       ├── config/
+│       │   ├── __init__.py
+│       │   └── settings.py        # env vars, model names, chunk size etc.
+│       │
+│       ├── document_processing/
+│       │   ├── __init__.py
+│       │   ├── engine.py
+│       │   └── handlers/
+│       │       ├── pdf.py
+│       │       ├── docx.py
+│       │       ├── txt.py
+│       │       └── web.py
+│       │
+│       ├── embeddings/
+│       │   ├── __init__.py
+│       │   └── embedding_service.py
+│       │
+│       ├── vectorstore/
+│       │   ├── __init__.py
+│       │   └── faiss_store.py       ← VectorStoreManager HERE
+│       │
+│       ├── rag/
+│       │   ├── __init__.py
+│       │   ├── graph.py             # LangGraph definition
+│       │   ├── retrieval.py         # retrieval node
+│       │   └── generation.py        # generation node
+│       │
+│       └── models/
+│           └── schemas.py
+│
+└── tests/
+    ├── test_document_processing.py
+    ├── test_vectorstore.py
+    └── test_rag.py
 ```
 
 ## Supported file types

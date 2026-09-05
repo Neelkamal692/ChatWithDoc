@@ -64,7 +64,8 @@ class BaseHandler(ABC):
             return {
                 "status": "success",
                 "answer": response["answer"],
-                "query": query
+                "query": query,
+                "context": response['context']
             }
         except Exception as e:
             logger.error(f"Query failed: {e}", exc_info=True)

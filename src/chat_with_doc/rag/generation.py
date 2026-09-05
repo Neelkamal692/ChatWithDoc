@@ -14,4 +14,4 @@ def generate(state, llm):
         "question": state.question,
         "context": "\n\n".join(doc.page_content for doc in state.context),
     })
-    return {"answer": llm.invoke(messages).content}
+    return {"answer": llm.invoke(messages).content, "context":[doc.page_content for doc in state.context]}
