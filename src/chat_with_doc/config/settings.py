@@ -11,15 +11,26 @@ class Settings:
     """Application settings loaded from environment variables."""
 
     # API Keys
-    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    # GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
     # LLM Configuration
-    LLM_MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash")
-    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "google_genai")
+    # LLM_MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash")
+    # LLM_PROVIDER = os.getenv("LLM_PROVIDER", "google_genai")
 
     # Embedding Configuration
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
-    EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "768"))  # Gemini recommended default
+    # EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
+    # EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "768"))  # Gemini recommended default
+
+    # Ollama Configuration
+    OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    OLLAMA_EMBEDDING_MODEL = os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
+
+    OLLAMA_CLOUD_MODEL = os.getenv("OLLAMA_CLOUD_MODEL")
+    OLLAMA_CLOUD_BASE_URL = os.getenv("OLLAMA_CLOUD_BASE_URL")
+    OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
+
+    OLLAMA_LOCAL_MODEL = os.getenv("OLLAMA_LOCAL_MODEL")
+    OLLAMA_LOCAL_BASE_URL = os.getenv("OLLAMA_LOCAL_BASE_URL")
 
     # Vector database 
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
@@ -39,19 +50,39 @@ class Settings:
     API_TITLE = "ChatWithDoc API"
     API_VERSION = "1.0.0"
 
-    def __init__(self):
-        """Validate required settings."""
-        if not self.GOOGLE_API_KEY:
-            raise ValueError("GOOGLE_API_KEY not found in environment variables")
-
     @staticmethod
     def get_llm():
-        """Initialize and return the LLM instance."""
-        settings = Settings()
-        return init_chat_model(
-            settings.LLM_MODEL,
-            model_provider=settings.LLM_PROVIDER
-        )
+        """Return the Ollama Cloud LLM, falling back to the local Ollama LLM on failure."""
+        # health_check_llm = init_chat_model(
+        #     Settings.OLLAMA_CLOUD_MODEL,
+        #     model_provider="openai",
+        #     base_url=Settings.OLLAMA_CLOUD_BASE_URL,
+        #     api_key=Settings.OLLAMA_API_KEY,
+        #     timeout=10,
+        #     max_retries=0,
+        # )
+        try:
+            
+            return init_chat_model(
+                Settings.OLLAMA_CLOUD_MODEL,
+                model_provider="openai", # OpenAI-compatible provider — Ollama Cloud needs Bearer-token auth that ChatOllama doesn't support cleanly
+                base_url=Settings.OLLAMA_CLOUD_BASE_URL,
+                api_key=Settings.OLLAMA_API_KEY,
+            )
+        except Exception:
+            return init_chat_model(
+                Settings.OLLAMA_LOCAL_MODEL,
+                model_provider="openai",
+                base_url=Settings.OLLAMA_LOCAL_BASE_URL,
+                api_key="ollama",
+            )
+
+    @staticmethod
+    def get_embeddings():
+        """Initialize and return the embeddings instance."""
+        from ..embeddings.embedding_service import EmbeddingService
+
+        return EmbeddingService.create()
 
 
 # Singleton instance

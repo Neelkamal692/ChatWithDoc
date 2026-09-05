@@ -84,15 +84,15 @@ class DocumentEngine:
         Returns:
             Dictionary with combined answers
         """
-        logger.info(f"Querying {len(self.processed_documents)} documents with: {query}")
+        
         if not self.processed_documents:
             return {"status": "error", "message": "No documents processed"}
 
-        logger.info(f"Querying {len(self.processed_documents)} documents with: {query}")
+        logger.info(f"Querying.... document's length is : {len(self.processed_documents)} and document's query is : {query}")
 
         try:
             all_responses = []
-
+            all_context = []
             for doc_info in self.processed_documents:
                 handler = doc_info["handler"]
                 filename = doc_info["filename"].split('\\')[-1]
@@ -103,6 +103,7 @@ class DocumentEngine:
                         answer = response.get("answer", "")
                         logger.info(f"this is the {answer}")
                         all_responses.append(f"From {filename}:\n{answer[0]['text']}")
+                        all_context.append(response.get("context", ""))
                 except Exception as e:
                     print(f"Error querying {filename}: {e}")
                     continue
@@ -111,7 +112,7 @@ class DocumentEngine:
                 return {"status": "error", "message": "No relevant information found"}
 
             combined_answer = "\n\n".join(all_responses)
-            return {"status": "success", "answer": combined_answer}
+            return {"status": "success", "answer": combined_answer, "context":all_context}
 
         except Exception as e:
             print(f"Multi-document query failed: {e}")
